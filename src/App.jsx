@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
+import CloudSyncCard from './CloudSyncCard';
+import { useCloudSync } from './useCloudSync';
 
 const TrendsCharts = lazy(() => import('./TrendsCharts'));
 
@@ -289,6 +291,7 @@ export default function App() {
   const [modal, setModal] = useState(null);
 
   const loaded = profileLoaded && logsLoaded && weeklyLoaded;
+  const cloud = useCloudSync({ loaded, profile, logs, weekly, saveProfile, saveLogs, saveWeekly });
 
   useEffect(() => {
     if (loaded) setView(profile ? 'dashboard' : 'onboarding');
@@ -366,7 +369,7 @@ export default function App() {
   }, [logs, today]);
 
   const handleReset = useCallback(async () => {
-    if (!confirm('This will delete ALL data and start fresh. Are you sure?')) return;
+    if (!confirm('This will delete ALL local data and start fresh. If cloud sync is enabled, this can sync to cloud too. Are you sure?')) return;
     await saveProfile(null);
     await saveLogs({});
     await saveWeekly({});
@@ -374,7 +377,7 @@ export default function App() {
   }, [saveProfile, saveLogs, saveWeekly]);
 
   // ─── Loading ────────────────────────────────────────────────────────────
-  if (!loaded || view === 'loading') {
+  if (!loaded || !cloud.authReady || cloud.hydrating || view === 'loading') {
     return <div style={S.root}><div style={S.center}><div style={S.spinner}/><p style={S.muted}>Loading…</p></div></div>;
   }
 
@@ -395,7 +398,10 @@ export default function App() {
 
       {/* ══════ ONBOARDING ══════ */}
       {view === 'onboarding' && (
-        <Onboarding onComplete={async (p) => { await saveProfile(p); setView('dashboard'); }} />
+        <Onboarding
+          onComplete={async (p) => { await saveProfile(p); setView('dashboard'); }}
+          cloud={cloud}
+        />
       )}
 
       {/* ══════ MAIN APP ══════ */}
@@ -504,6 +510,7 @@ export default function App() {
                 profile={profile} saveProfile={saveProfile}
                 engine={engine} setModal={setModal}
                 onExport={handleExport} onCSV={handleCSV} onReset={handleReset}
+                cloud={cloud}
               />
             )}
           </main>
@@ -524,7 +531,7 @@ const OB_SCREENS = [
   { icon: '💾', title: 'Save & Return', sub: 'Your data persists between sessions', body: 'Check in each morning, log each evening. Weekly check-ins on Sunday track your trends. All data is saved automatically — pick up right where you left off.' },
 ];
 
-function Onboarding({ onComplete }) {
+function Onboarding({ onComplete, cloud }) {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({
     name: '', age: '', sex: 'male', units: 'imperial',
@@ -553,6 +560,11 @@ function Onboarding({ onComplete }) {
           <p style={{ color: '#16a34a', fontSize: '0.9rem', margin: '0.25rem 0 1rem' }}>{s.sub}</p>
           <p style={{ color: '#737373', fontSize: '0.9rem', lineHeight: 1.6 }}>{s.body}</p>
         </div>
+        {cloud && (
+          <div style={{ width: '100%', maxWidth: 380, marginTop: '1.25rem' }}>
+            <CloudSyncCard sync={cloud} Card={Card} Label={Label} Input={Input} S={S} compact />
+          </div>
+        )}
         <div style={{ ...S.row, marginTop: '2rem', width: '100%', maxWidth: 380 }}>
           {step > 0 && <button style={S.ghost} onClick={() => setStep(step - 1)}>← Back</button>}
           <button style={{ ...S.cta, flex: 1 }} onClick={() => setStep(step + 1)}>
@@ -586,6 +598,10 @@ function Onboarding({ onComplete }) {
 
       <div style={{ maxWidth: 440, width: '100%' }}>
         <h2 style={{ ...S.obTitle, marginBottom: '1.5rem' }}>Your Profile</h2>
+
+        {cloud && (
+          <CloudSyncCard sync={cloud} Card={Card} Label={Label} Input={Input} S={S} compact />
+        )}
 
         <Card>
           <Label>Name (optional)</Label>
@@ -1295,13 +1311,17 @@ function Trends({ weekly, logs, engine, currentWeek, profile }) {
 // SETTINGS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function Settings({ profile, saveProfile, engine, setModal, onExport, onCSV, onReset }) {
+function Settings({ profile, saveProfile, engine, setModal, onExport, onCSV, onReset, cloud }) {
   const upd = (k, v) => saveProfile({ ...profile, [k]: v });
   const wu = profile.units === 'metric' ? 'kg' : 'lbs';
 
   return (
     <div style={S.stack}>
       <h2 style={S.pageTitle}>Settings & Profile</h2>
+
+      {cloud && (
+        <CloudSyncCard sync={cloud} Card={Card} Label={Label} Input={Input} S={S} />
+      )}
 
       <Card>
         <h3 style={S.cardTitle}>PROFILE</h3>
