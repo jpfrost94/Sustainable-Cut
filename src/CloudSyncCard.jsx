@@ -74,6 +74,36 @@ export default function CloudSyncCard({ sync, Card, Label, Input, S, compact = f
       <p style={{ ...S.muted, marginTop: 8 }}>
         Use one account across all devices. Your profile and logs sync automatically.
       </p>
+
+      <div style={{ ...S.stack05, marginTop: 10 }}>
+        <button
+          style={{ ...S.expBtn, opacity: busy ? 0.6 : 1 }}
+          disabled={busy}
+          onClick={async () => {
+            const res = await sync.signInOAuth?.('google');
+            if (res && !res.ok) setLocalMsg(res.error || 'Google sign-in failed.');
+          }}
+        >
+          Continue with Google
+        </button>
+        <button
+          style={{ ...S.expBtn, opacity: busy ? 0.6 : 1 }}
+          disabled={busy}
+          onClick={async () => {
+            const res = await sync.signInOAuth?.('github');
+            if (res && !res.ok) setLocalMsg(res.error || 'GitHub sign-in failed.');
+          }}
+        >
+          Continue with GitHub
+        </button>
+        <p style={{ color: '#525252', fontSize: '0.72rem', margin: '4px 0 0' }}>
+          If a button errors, enable that provider in Supabase Auth settings.
+        </p>
+      </div>
+
+      <div style={{ marginTop: 12, borderTop: '1px solid #1f1f1f', paddingTop: 12 }}>
+        <p style={{ ...S.muted, fontSize: '0.78rem' }}>Or sign in with email:</p>
+      </div>
       <div style={{ marginTop: 10 }}>
         <Label>Email</Label>
         <Input type="email" value={email} onChange={(e) => setEmail(e.target.value.trim())} placeholder="you@email.com" />

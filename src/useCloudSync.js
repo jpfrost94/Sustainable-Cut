@@ -257,6 +257,33 @@ export function useCloudSync({ loaded, profile, logs, weekly, saveProfile, saveL
     return { ok: true };
   }, [setStatus]);
 
+  const signInOAuth = useCallback(async (provider) => {
+    if (!cloudConfigured) return { ok: false, error: 'Cloud sync is not configured.' };
+    if (!provider) return { ok: false, error: 'Missing OAuth provider.' };
+
+    setAuthBusy(true);
+    setStatus({ status: 'syncing', message: 'Redirecting to provider…', error: null });
+
+    const redirectTo = typeof window !== 'undefined'
+      ? `${window.location.origin}${import.meta.env.BASE_URL}`
+      : undefined;
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo },
+    });
+
+    setAuthBusy(false);
+
+    if (error) {
+      setStatus({ status: 'error', message: 'SSO sign-in failed.', error: error.message });
+      return { ok: false, error: error.message };
+    }
+
+    // On success, the browser typically redirects immediately.
+    return { ok: true };
+  }, [setStatus]);
+
   const syncNow = useCallback(async () => {
     if (!session?.user?.id) return { ok: false, error: 'Sign in first.' };
     const ok = await pushLocalState('Manual sync complete.');
@@ -303,6 +330,7 @@ export function useCloudSync({ loaded, profile, logs, weekly, saveProfile, saveL
     syncInfo,
     signIn,
     signUp,
+    signInOAuth,
     signOut,
     syncNow,
     pullFromCloud,
